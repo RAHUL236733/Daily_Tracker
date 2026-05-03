@@ -1,0 +1,323 @@
+# Daily Habit Tracker - Backend API Documentation
+
+## Setup Instructions
+
+### Prerequisites
+- Node.js (v14 or higher)
+- MongoDB (local or cloud)
+- npm or yarn
+
+### Installation
+
+1. **Clone or navigate to the backend directory**
+```bash
+cd Backend
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Create .env file**
+Copy `.env.example` to `.env` and fill in your values:
+```bash
+cp .env.example .env
+```
+
+4. **Configure Environment Variables**
+Edit `.env` with your actual values:
+- `MONGODB_URI`: Your MongoDB connection string
+- `JWT_SECRET`: A strong secret key for JWT
+- `EMAIL_USER` & `EMAIL_PASSWORD`: Gmail app-specific password
+- `FRONTEND_URL`: Your frontend URL (for CORS)
+
+5. **Start the server**
+```bash
+# Development (with auto-reload)
+npm run dev
+
+# Production
+npm start
+```
+
+Server will run on `http://localhost:5000`
+
+---
+
+## API Endpoints
+
+### Authentication
+
+#### 1. Register
+- **POST** `/api/auth/register`
+- **Body**:
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+- **Response**: User object + JWT token
+
+#### 2. Login
+- **POST** `/api/auth/login`
+- **Body**:
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+- **Response**: User object + JWT token
+
+#### 3. Get Current User
+- **GET** `/api/auth/me`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Current user object
+
+#### 4. Forgot Password (Request OTP)
+- **POST** `/api/auth/forgot-password`
+- **Body**:
+```json
+{
+  "email": "john@example.com"
+}
+```
+- **Response**: Success message
+
+#### 5. Verify OTP
+- **POST** `/api/auth/verify-otp`
+- **Body**:
+```json
+{
+  "email": "john@example.com",
+  "otp": "1234"
+}
+```
+- **Response**: Success message
+
+#### 6. Reset Password
+- **POST** `/api/auth/reset-password`
+- **Body**:
+```json
+{
+  "email": "john@example.com",
+  "newPassword": "newpassword123",
+  "confirmPassword": "newpassword123"
+}
+```
+- **Response**: Success message
+
+---
+
+### Tasks
+
+#### 1. Create Task
+- **POST** `/api/tasks`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**:
+```json
+{
+  "title": "Morning Meditation",
+  "category": "Mind",
+  "targetTime": "06:30",
+  "duration": "10 min",
+  "description": "Start the day with meditation"
+}
+```
+- **Response**: Created task object
+
+#### 2. Get All Tasks
+- **GET** `/api/tasks`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Array of tasks for current user
+
+#### 3. Get Single Task
+- **GET** `/api/tasks/:id`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Task object
+
+#### 4. Update Task
+- **PUT** `/api/tasks/:id`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**: Any fields to update
+- **Response**: Updated task object
+
+#### 5. Delete Task
+- **DELETE** `/api/tasks/:id`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Success message
+
+#### 6. Toggle Task Completion
+- **PATCH** `/api/tasks/:id/toggle`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Updated task object
+
+---
+
+### Task Logs (Tracking)
+
+#### 1. Create/Update Log
+- **POST** `/api/logs`
+- **Headers**: `Authorization: Bearer <token>`
+- **Body**:
+```json
+{
+  "taskId": "65a1b2c3d4e5f6g7h8i9j0k1",
+  "date": "2024-01-15",
+  "completed": true,
+  "timeSpent": 12,
+  "notes": "Great session today"
+}
+```
+- **Response**: Created/updated log object
+
+#### 2. Get Logs for a Date
+- **GET** `/api/logs?date=2024-01-15`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Array of task logs for the date
+
+#### 3. Get Logs for Date Range
+- **GET** `/api/logs/range?startDate=2024-01-01&endDate=2024-01-31`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Array of task logs in the range
+
+#### 4. Get Daily Stats
+- **GET** `/api/logs/stats?date=2024-01-15`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**:
+```json
+{
+  "success": true,
+  "stats": {
+    "date": "2024-01-15",
+    "completed": 3,
+    "total": 5,
+    "completionRate": 60,
+    "totalTimeSpent": 45
+  }
+}
+```
+
+#### 5. Delete Log
+- **DELETE** `/api/logs/:id`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: Success message
+
+---
+
+## Database Schema
+
+### User
+```javascript
+{
+  _id: ObjectId,
+  name: String,
+  email: String (unique),
+  password: String (hashed),
+  otp: String (for password reset),
+  otpExpiry: Date,
+  isEmailVerified: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Task
+```javascript
+{
+  _id: ObjectId,
+  userId: ObjectId (ref: User),
+  title: String,
+  category: String, // Health, Mind, Work, Learning, Personal
+  targetTime: String, // HH:MM format
+  duration: String, // e.g., "30 min"
+  completed: Boolean,
+  description: String,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### TaskLog
+```javascript
+{
+  _id: ObjectId,
+  userId: ObjectId (ref: User),
+  taskId: ObjectId (ref: Task),
+  date: Date,
+  completed: Boolean,
+  timeSpent: Number, // in minutes
+  notes: String,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+---
+
+## Error Handling
+
+All endpoints return JSON responses with `success` and `message` fields:
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": {...}
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
+```
+
+---
+
+## Security Features
+
+✓ JWT-based authentication  
+✓ Bcrypt password hashing  
+✓ OTP-based password reset  
+✓ User data isolation (userId-based filtering)  
+✓ Protected routes with middleware  
+✓ CORS enabled for frontend  
+✓ Email verification via nodemailer  
+
+---
+
+## Testing the API
+
+Use Postman or any API client to test endpoints:
+
+1. Register a new user
+2. Copy the JWT token from response
+3. Use token in Authorization header for protected routes
+4. Test task CRUD operations
+5. Test task logging and daily stats
+6. Test forgot password flow (OTP system)
+
+---
+
+## Deployment
+
+For production deployment:
+
+1. Set `NODE_ENV=production` in .env
+2. Use a strong `JWT_SECRET`
+3. Set up proper MongoDB Atlas connection
+4. Configure email service (Gmail app-specific password)
+5. Deploy to services like Heroku, Railway, Render, etc.
+
+---
+
+## Support
+
+For issues or questions, check the API responses and console logs for error messages.
