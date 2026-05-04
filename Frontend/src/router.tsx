@@ -59,7 +59,8 @@ export const getRouter = () => {
     routeTree,
     context: {},
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    defaultPreloadStaleTime: 30000,
+    defaultPendingComponent: () => <div className="opacity-50">Loading...</div>,
     defaultErrorComponent: DefaultErrorComponent,
   });
 

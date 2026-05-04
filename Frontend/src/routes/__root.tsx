@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { TasksProvider } from "@/lib/tasksContext";
 import { AuthProvider } from "@/lib/auth";
+import { NotificationsProvider } from "@/lib/notifications";
 
 function NotFoundComponent() {
   return (
@@ -55,11 +56,13 @@ function RootComponent() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <TasksProvider>
-          <AppLayout>
-            <Outlet />
-          </AppLayout>
-        </TasksProvider>
+        <NotificationsProvider>
+          <TasksProvider>
+            <AppLayout>
+              <Outlet />
+            </AppLayout>
+          </TasksProvider>
+        </NotificationsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -20,30 +20,14 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const { theme, toggle } = useTheme();
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (!isAuthenticated) {
-      if (typeof window !== "undefined") window.location.href = "/login";
-    }
-  }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
     setName(user?.name || "");
     setEmail(user?.email || "");
   }, [user?.name, user?.email]);
-
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-3xl py-10 text-sm text-muted-foreground">
-        Loading settings...
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-3xl">

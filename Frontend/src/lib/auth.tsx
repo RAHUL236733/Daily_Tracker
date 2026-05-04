@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { buildApiUrl, postJson } from "@/lib/api";
+import { apiJson, buildApiUrl, postJson } from "@/lib/api";
 
-type UserSession = { token: string; userId: string };
-type User = { name: string; email: string; userId: string; token: string } | null;
+type User = { _id: string; name: string; email: string; role?: "user" | "admin" } | null;
+const AUTH_NOTICE_KEY = "dt_auth_notice";
+const SESSION_EXPIRED_EVENT = "dt:session-expired";
 
 type AuthContextType = {
   user: User;
   isLoading: boolean;
+  authNotice: string;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -16,102 +18,123 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const readSession = (): UserSession | null => {
-  try {
-    const raw = localStorage.getItem("dt_user");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<UserSession>;
-    if (!parsed.token || !parsed.userId) return null;
-    return { token: parsed.token, userId: parsed.userId };
-  } catch {
-    return null;
-  }
-};
-
-const writeSession = (session: UserSession | null) => {
-  if (!session) {
-    localStorage.removeItem("dt_user");
-    return;
-  }
-
-  localStorage.setItem("dt_user", JSON.stringify(session));
-};
-
-const fetchProfileByToken = async (token: string, signal?: AbortSignal) => {
-  const response = await fetch(buildApiUrl("/api/user/profile"), {
+const requestCurrentUser = async (signal?: AbortSignal) => {
+  const response = await fetch(buildApiUrl("/api/auth/me"), {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    credentials: "include",
     signal,
+    headers: {
+      "Content-Type": "application/json",
+    },
   });
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error((data as { message?: string })?.message || "Failed to load profile");
+    const error = new Error((data as { message?: string })?.message || "Failed to load profile") as Error & {
+      status?: number;
+    };
+    error.status = response.status;
+    throw error;
   }
 
-  return (data as { user: { name: string; email: string } }).user;
+  return (data as { user: NonNullable<User> }).user;
+};
+
+const loadCurrentUser = async (signal?: AbortSignal) => {
+  try {
+    return await requestCurrentUser(signal);
+  } catch (error) {
+    if ((error as { status?: number })?.status !== 401) {
+      throw error;
+    }
+
+    try {
+      await apiJson("/api/auth/refresh", { method: "POST" });
+      return requestCurrentUser(signal);
+    } catch (refreshError) {
+      const message = refreshError instanceof Error ? refreshError.message : "";
+      if (/session expired|refresh token is not valid|token is not valid/i.test(message)) {
+        throw new Error("Session expired. Please sign in again.");
+      }
+
+      throw error;
+    }
+  }
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authNotice, setAuthNotice] = useState(() => {
+    if (typeof window === "undefined") return "";
+
+    return sessionStorage.getItem(AUTH_NOTICE_KEY) || "";
+  });
+
+  const clearAuthNotice = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(AUTH_NOTICE_KEY);
+    }
+
+    setAuthNotice("");
+  };
+
+  const setSessionExpiredNotice = (message = "Session expired. Please sign in again.") => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(AUTH_NOTICE_KEY, message);
+    }
+
+    setAuthNotice(message);
+  };
 
   useEffect(() => {
-    const session = readSession();
-    if (!session) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
+    localStorage.removeItem("dt_user");
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 8000);
 
-    fetchProfileByToken(session.token, controller.signal)
+    loadCurrentUser(controller.signal)
       .then((profile) => {
-        setUser({
-          token: session.token,
-          userId: session.userId,
-          name: profile.name,
-          email: profile.email,
-        });
+        setUser(profile);
         setIsLoading(false);
+        clearAuthNotice();
       })
-      .catch(() => {
-        writeSession(null);
+      .catch((error) => {
         setUser(null);
         setIsLoading(false);
+
+        if (error instanceof Error && /session expired/i.test(error.message)) {
+          setSessionExpiredNotice(error.message);
+        }
       })
       .finally(() => {
         window.clearTimeout(timeoutId);
       });
+
+    const handleSessionExpired = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message?: string }>;
+      setUser(null);
+      setIsLoading(false);
+      setSessionExpiredNotice(customEvent.detail?.message || "Session expired. Please sign in again.");
+    };
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    };
   }, []);
 
   const refreshProfile = async () => {
-    const session = readSession();
-    if (!session) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 8000);
 
     try {
-      const profile = await fetchProfileByToken(session.token, controller.signal);
-      setUser({
-        token: session.token,
-        userId: session.userId,
-        name: profile.name,
-        email: profile.email,
-      });
+      setUser(await loadCurrentUser(controller.signal));
     } catch {
-      writeSession(null);
       setUser(null);
     } finally {
       window.clearTimeout(timeoutId);
@@ -120,8 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    const data = await postJson<{ success: boolean; token: string; userId: string }>(
+    const data = await postJson<{ success: boolean; user: NonNullable<User> }>(
       "/api/auth/login",
       {
         email,
@@ -129,16 +151,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     );
 
-    writeSession({ token: data.token, userId: data.userId });
-    const profile = await fetchProfileByToken(data.token);
-    setUser({ token: data.token, userId: data.userId, name: profile.name, email: profile.email });
+    setUser(data.user);
     setIsLoading(false);
-    window.location.href = "/";
+    clearAuthNotice();
   };
 
   const register = async (name: string, email: string, password: string) => {
-    setIsLoading(true);
-    const data = await postJson<{ success: boolean; token: string; userId: string }>(
+    const data = await postJson<{ success: boolean; user: NonNullable<User> }>(
       "/api/auth/register",
       {
         name,
@@ -147,19 +166,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     );
 
-    writeSession({ token: data.token, userId: data.userId });
-    const profile = await fetchProfileByToken(data.token);
-    setUser({ token: data.token, userId: data.userId, name: profile.name, email: profile.email });
+    setUser(data.user);
     setIsLoading(false);
-    window.location.href = "/";
+    clearAuthNotice();
   };
 
   const logout = () => {
-    setIsLoading(false);
-    writeSession(null);
+    apiJson("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     localStorage.removeItem("dt_reset_email");
+    clearAuthNotice();
     setUser(null);
-    window.location.href = "/login";
+    setIsLoading(false);
   };
 
   return (
@@ -167,6 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isLoading,
+        authNotice,
         login,
         register,
         refreshProfile,

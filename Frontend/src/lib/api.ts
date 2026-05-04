@@ -1,4 +1,77 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const isLocalHost = (value: string) => /^(localhost|127\.0\.0\.1)$/i.test(value);
+
+const resolveApiBaseUrl = () => {
+  const configuredUrl = import.meta.env.VITE_API_URL;
+  if (configuredUrl) return configuredUrl;
+
+  if (typeof window !== "undefined") {
+    const { protocol, hostname } = window.location;
+
+    if (isLocalHost(hostname)) {
+      return "http://localhost:5000";
+    }
+
+    return `${protocol}//${window.location.host}`;
+  }
+
+  return "http://localhost:5000";
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+const AUTH_REFRESH_ENDPOINT = "/api/auth/refresh";
+const PUBLIC_AUTH_PATHS = new Set([
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/forgot-password",
+  "/api/auth/verify-otp",
+  "/api/auth/reset-password",
+  "/api/auth/logout",
+  "/api/auth/me",
+  AUTH_REFRESH_ENDPOINT,
+]);
+const SESSION_EXPIRED_EVENT = "dt:session-expired";
+
+const isSessionExpiredMessage = (message: string) =>
+  /session expired|refresh token is not valid|token is not valid|refresh token missing/i.test(message);
+
+const getPathname = (url: string) => {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+};
+
+const emitSessionExpired = (message: string) => {
+  if (typeof window === "undefined") return;
+
+  const detail = { message };
+  sessionStorage.setItem("dt_auth_notice", message);
+  window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT, { detail }));
+};
+
+const refreshSession = async () => {
+  const response = await fetch(buildApiUrl(AUTH_REFRESH_ENDPOINT), {
+    method: "POST",
+    mode: "cors",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error((data as { message?: string })?.message || "Session expired. Please sign in again.") as Error & {
+      status?: number;
+    };
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+};
 
 function buildApiUrl(path: string) {
   // If caller passed a full URL, use it as-is
@@ -12,38 +85,51 @@ function buildApiUrl(path: string) {
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-function getAuthToken() {
-  if (typeof window === "undefined") return undefined;
-
-  try {
-    const raw = localStorage.getItem("dt_user");
-    if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as { token?: string };
-    return parsed?.token;
-  } catch {
-    return undefined;
-  }
-}
-
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const url = buildApiUrl(path);
-  const token = getAuthToken();
+  const pathname = getPathname(url);
+  const shouldRefreshOn401 = pathname.startsWith("/api/") && !PUBLIC_AUTH_PATHS.has(pathname);
 
   try {
-    const response = await fetch(url, {
-      mode: "cors",
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(init.headers || {}),
-      },
-    });
+    const request = async () => {
+      const response = await fetch(url, {
+        mode: "cors",
+        credentials: "include",
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...(init.headers || {}),
+        },
+      });
 
-    const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
+
+      return { response, data };
+    };
+
+    let { response, data } = await request();
+
+    if (!response.ok && response.status === 401 && shouldRefreshOn401) {
+      try {
+        await refreshSession();
+        ({ response, data } = await request());
+      } catch (refreshError) {
+        const refreshMessage = refreshError instanceof Error ? refreshError.message : "Session expired. Please sign in again.";
+
+        if (isSessionExpiredMessage(refreshMessage)) {
+          emitSessionExpired("Session expired. Please sign in again.");
+        }
+
+        throw refreshError;
+      }
+    }
 
     if (!response.ok) {
-      throw new Error((data as { message?: string })?.message || "Request failed");
+      const error = new Error((data as { message?: string })?.message || "Request failed") as Error & {
+        status?: number;
+      };
+      error.status = response.status;
+      throw error;
     }
 
     return data as T;
@@ -51,7 +137,19 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
     // Log detailed network/fetch errors to aid debugging (e.g. CORS, connection refused)
     // eslint-disable-next-line no-console
     console.error("apiJson error", { url, init, error: err });
-    throw err;
+
+    // Enhance the thrown error with the request URL so callers can display/debug it
+    const enhanced = new Error(err instanceof Error ? err.message : String(err));
+    try {
+      (enhanced as any).name = (err as any)?.name || enhanced.name;
+      (enhanced as any).url = url;
+      (enhanced as any).init = init;
+      (enhanced as any).status = (err as any)?.status;
+    } catch (e) {
+      // ignore
+    }
+
+    throw enhanced;
   }
 }
 

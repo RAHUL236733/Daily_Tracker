@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Flame, Target, TrendingUp, CheckCircle2, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/habits/PageHeader";
 import { StatCard } from "@/components/habits/StatCard";
@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { useTasks } from "@/lib/tasksContext";
 import { useAuth } from "@/lib/auth";
 import { getJson } from "@/lib/api";
+import { useNotifications } from "@/lib/notifications";
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, CartesianGrid } from "recharts";
 
 export const Route = createFileRoute("/")({
@@ -82,18 +83,57 @@ function Dashboard() {
     };
   }, [auth.isAuthenticated, tasks]);
 
-  if (auth.isLoading) {
-    return (
-      <div className="mx-auto max-w-7xl py-10 text-sm text-muted-foreground">
-        Loading dashboard...
-      </div>
-    );
-  }
+  // Notifications for streaks and completion
+  const { push } = useNotifications();
+  const prevStreakRef = React.useRef<number | null>(null);
+  const prevAllDoneRef = React.useRef<boolean | null>(null);
 
-  if (!auth.isAuthenticated) {
-    if (typeof window !== "undefined") window.location.href = "/login";
-    return null;
-  }
+  useEffect(() => {
+    const prev = prevStreakRef.current;
+    const curr = dashboard.overallStreak;
+    const isAllDone = dashboard.totalHabits > 0 && dashboard.completedHabitsToday === dashboard.totalHabits;
+
+    // Prime refs on first dashboard sync to avoid firing notifications on route remount.
+    if (prev === null || prevAllDoneRef.current === null) {
+      prevStreakRef.current = curr;
+      prevAllDoneRef.current = isAllDone;
+      return;
+    }
+
+    if (curr > prev) {
+      push({
+        title: "Streak extended!",
+        body: `You're on a ${curr}-day streak. Keep it up! 🔥`,
+        tone: "streak",
+        dedupeKey: `streak-${curr}`,
+      });
+
+      // milestone badges
+      const milestones = [3, 7, 14, 30];
+      if (milestones.includes(curr)) {
+        push({
+          title: "Milestone reached!",
+          body: `Nice — ${curr} days in a row. Great work!`,
+          tone: "success",
+          dedupeKey: `milestone-${curr}`,
+        });
+      }
+    }
+
+    // Completed all habits today
+    if (isAllDone && !prevAllDoneRef.current) {
+      const dayKey = new Date().toISOString().slice(0, 10);
+      push({
+        title: "All done!",
+        body: "You've completed all habits for today — take a break ✅",
+        tone: "success",
+        dedupeKey: `all-done-${dayKey}`,
+      });
+    }
+
+    prevStreakRef.current = curr;
+    prevAllDoneRef.current = isAllDone;
+  }, [dashboard.overallStreak, dashboard.completedHabitsToday, dashboard.totalHabits, push]);
 
   const completed = dashboard.completedHabitsToday;
   const total = dashboard.totalHabits;

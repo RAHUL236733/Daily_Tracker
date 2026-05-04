@@ -27,8 +27,11 @@ cp .env.example .env
 
 4. **Configure Environment Variables**
 Edit `.env` with your actual values:
-- `MONGODB_URI`: Your MongoDB connection string
-- `JWT_SECRET`: A strong secret key for JWT
+- `MONGO_URI` or `MONGODB_URI`: Your MongoDB connection string
+- `JWT_SECRET`: A strong secret key for access tokens
+- `JWT_REFRESH_SECRET`: A separate strong secret for refresh tokens
+- `JWT_EXPIRE`: Access token lifetime, for example `1h`
+- `JWT_REFRESH_EXPIRE`: Refresh token lifetime, for example `7d`
 - `EMAIL_USER` & `EMAIL_PASSWORD`: Gmail app-specific password
 - `FRONTEND_URL`: Your frontend URL (for CORS)
 
@@ -59,7 +62,7 @@ Server will run on `http://localhost:5000`
   "password": "password123"
 }
 ```
-- **Response**: User object + JWT token
+- **Response**: User object and secure auth cookies
 
 #### 2. Login
 - **POST** `/api/auth/login`
@@ -70,11 +73,11 @@ Server will run on `http://localhost:5000`
   "password": "password123"
 }
 ```
-- **Response**: User object + JWT token
+- **Response**: User object and secure auth cookies
 
 #### 3. Get Current User
 - **GET** `/api/auth/me`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie, refresh handled at `/api/auth/refresh`
 - **Response**: Current user object
 
 #### 4. Forgot Password (Request OTP)
@@ -116,7 +119,7 @@ Server will run on `http://localhost:5000`
 
 #### 1. Create Task
 - **POST** `/api/tasks`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Body**:
 ```json
 {
@@ -131,28 +134,28 @@ Server will run on `http://localhost:5000`
 
 #### 2. Get All Tasks
 - **GET** `/api/tasks`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**: Array of tasks for current user
 
 #### 3. Get Single Task
 - **GET** `/api/tasks/:id`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**: Task object
 
 #### 4. Update Task
 - **PUT** `/api/tasks/:id`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Body**: Any fields to update
 - **Response**: Updated task object
 
 #### 5. Delete Task
 - **DELETE** `/api/tasks/:id`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**: Success message
 
 #### 6. Toggle Task Completion
 - **PATCH** `/api/tasks/:id/toggle`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**: Updated task object
 
 ---
@@ -161,7 +164,7 @@ Server will run on `http://localhost:5000`
 
 #### 1. Create/Update Log
 - **POST** `/api/logs`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Body**:
 ```json
 {
@@ -176,17 +179,17 @@ Server will run on `http://localhost:5000`
 
 #### 2. Get Logs for a Date
 - **GET** `/api/logs?date=2024-01-15`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**: Array of task logs for the date
 
 #### 3. Get Logs for Date Range
 - **GET** `/api/logs/range?startDate=2024-01-01&endDate=2024-01-31`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**: Array of task logs in the range
 
 #### 4. Get Daily Stats
 - **GET** `/api/logs/stats?date=2024-01-15`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**:
 ```json
 {
@@ -203,7 +206,7 @@ Server will run on `http://localhost:5000`
 
 #### 5. Delete Log
 - **DELETE** `/api/logs/:id`
-- **Headers**: `Authorization: Bearer <token>`
+- **Auth**: HttpOnly `accessToken` cookie (legacy `Authorization: Bearer <token>` also supported)
 - **Response**: Success message
 
 ---
@@ -283,13 +286,18 @@ All endpoints return JSON responses with `success` and `message` fields:
 
 ## Security Features
 
-✓ JWT-based authentication  
+✓ Access/refresh JWT flow with HttpOnly cookies  
+✓ Refresh-token rotation with hashed refresh token storage  
 ✓ Bcrypt password hashing  
-✓ OTP-based password reset  
-✓ User data isolation (userId-based filtering)  
-✓ Protected routes with middleware  
-✓ CORS enabled for frontend  
-✓ Email verification via nodemailer  
+✓ Account lockout after repeated failed logins  
+✓ express-rate-limit on auth routes  
+✓ express-validator request validation  
+✓ NoSQL injection protection via `express-mongo-sanitize`  
+✓ `helmet` HTTP security headers  
+✓ CORS allowlist with `FRONTEND_URL`  
+✓ Body size limits for JSON/urlencoded payloads  
+✓ Centralized API error handling middleware  
+✓ Request logging with `morgan`  
 
 ---
 
@@ -297,24 +305,18 @@ All endpoints return JSON responses with `success` and `message` fields:
 
 Use Postman or any API client to test endpoints:
 
-1. Register a new user
-2. Copy the JWT token from response
-3. Use token in Authorization header for protected routes
+1. Register/login and confirm HttpOnly cookies are set
+2. Call `/api/auth/me` with credentials included
+3. Test `/api/auth/refresh` token rotation
 4. Test task CRUD operations
 5. Test task logging and daily stats
-6. Test forgot password flow (OTP system)
+6. Test forgot/reset password flow (OTP)
 
 ---
 
 ## Deployment
 
-For production deployment:
-
-1. Set `NODE_ENV=production` in .env
-2. Use a strong `JWT_SECRET`
-3. Set up proper MongoDB Atlas connection
-4. Configure email service (Gmail app-specific password)
-5. Deploy to services like Heroku, Railway, Render, etc.
+Use the deployment checklist in [DEPLOYMENT.md](DEPLOYMENT.md) for Render/Railway setup.
 
 ---
 

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ function VerifyOtpPage() {
   const [timer, setTimer] = useState(30);
   const [sent, setSent] = useState(true);
   const [email, setEmail] = useState("");
+  const navigate = useRouter().navigate;
 
   useEffect(() => {
     let t: number | undefined;
@@ -29,11 +30,11 @@ function VerifyOtpPage() {
   useEffect(() => {
     const stored = localStorage.getItem("dt_reset_email");
     if (!stored) {
-      if (typeof window !== "undefined") window.location.href = "/forgot-password";
+      navigate({ to: "/forgot-password" });
       return;
     }
     setEmail(stored);
-  }, []);
+  }, [navigate]);
 
   const resend = async () => {
     if (!email) return;
@@ -71,7 +72,7 @@ function VerifyOtpPage() {
       await postJson<{ success: boolean; message: string }>("/api/auth/verify-otp", { email, otp });
       // eslint-disable-next-line no-console
       console.log('verify-otp successful');
-      window.location.href = "/reset-password";
+      navigate({ to: "/reset-password" });
     } catch (authError) {
       // eslint-disable-next-line no-console
       console.error("verify otp error:", authError);

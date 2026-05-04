@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
 type Notification = {
@@ -18,11 +19,7 @@ type Notification = {
   unread: boolean;
 };
 
-const initial: Notification[] = [
-  { id: "1", title: "Streak extended!", body: "You hit a 5-day streak. Keep it going 🔥", time: "2m ago", icon: Flame, tone: "streak", unread: true },
-  { id: "2", title: "Habit completed", body: "Morning meditation marked done.", time: "1h ago", icon: CheckCircle2, tone: "success", unread: true },
-  { id: "3", title: "New weekly insight", body: "You're 6% more consistent than last week.", time: "Yesterday", icon: Sparkles, tone: "info", unread: false },
-];
+// We'll display notifications from the NotificationsProvider (in-memory)
 
 const toneStyles: Record<Notification["tone"], string> = {
   success: "bg-success/15 text-success",
@@ -31,10 +28,9 @@ const toneStyles: Record<Notification["tone"], string> = {
 };
 
 export function NotificationsMenu() {
-  const [items, setItems] = useState<Notification[]>(initial);
-  const unread = items.filter((n) => n.unread).length;
-
-  const markAll = () => setItems((xs) => xs.map((n) => ({ ...n, unread: false })));
+  const { notifications, markAllRead, remove } = useNotifications();
+  const [items] = useState<Notification[]>([]);
+  const unread = notifications.filter((n) => n.unread).length;
 
   return (
     <DropdownMenu>
@@ -64,7 +60,7 @@ export function NotificationsMenu() {
             <p className="text-[11px] text-muted-foreground">{unread} unread</p>
           </div>
           <button
-            onClick={markAll}
+            onClick={markAllRead}
             className="text-xs font-medium text-primary transition-colors hover:text-primary/80 disabled:opacity-50"
             disabled={unread === 0}
           >
@@ -73,21 +69,21 @@ export function NotificationsMenu() {
         </div>
 
         <div className="max-h-[360px] overflow-y-auto py-1">
-          {items.length === 0 ? (
+          {notifications.length === 0 ? (
             <div className="px-4 py-10 text-center">
               <Bell className="mx-auto h-6 w-6 text-muted-foreground" />
               <p className="mt-2 text-sm font-medium">You're all caught up</p>
               <p className="text-xs text-muted-foreground">No new notifications.</p>
             </div>
           ) : (
-            items.map((n) => (
+            notifications.map((n) => (
               <button
                 key={n.id}
-                onClick={() => setItems((xs) => xs.map((x) => (x.id === n.id ? { ...x, unread: false } : x)))}
+                onClick={() => remove(n.id)}
                 className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/60"
               >
                 <div className={cn("mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", toneStyles[n.tone])}>
-                  <n.icon className="h-4 w-4" />
+                  {n.tone === "streak" ? <Flame className="h-4 w-4" /> : n.tone === "success" ? <CheckCircle2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
@@ -103,9 +99,14 @@ export function NotificationsMenu() {
         </div>
 
         <div className="border-t border-border p-2">
-          <button className="w-full rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary-soft">
-            View all notifications
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => markAllRead()} className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary-soft">
+              Mark all read
+            </button>
+            <button className="flex-1 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary-soft">
+              View all
+            </button>
+          </div>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

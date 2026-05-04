@@ -191,25 +191,4 @@
   .animate-float {
     animation: float 4.5s ease-in-out infinite;
   }
-
-  @keyframes assistant-float-in {
-    0% {
-      opacity: 0;
-      transform: translate3d(18px, 14px, 0) scale(0.98);
-    }
-
-    60% {
-      opacity: 1;
-      transform: translate3d(0, -4px, 0) scale(1.01);
-    }
-
-    100% {
-      opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-  }
-
-  .animate-assistant-float-in {
-    animation: assistant-float-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
 }

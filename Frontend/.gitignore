@@ -1,4 +1,5 @@
 # Logs
+
 logs
 *.log
 npm-debug.log*
@@ -7,26 +8,55 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-.output
-.vinxi
+# Dependencies
+
+node_modules/
+
+# Build files
+
+dist/
+dist-ssr/
+build/
+.output/
+.vinxi/
 .tanstack/**
-.nitro
-*.local
+.nitro/
 
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
+# Environment variables (IMPORTANT)
 
-# Editor directories and files
+.env
+.env.*
+!.env.example
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+# Editor folders
+
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Cloud / deployment
+
+.wrangler/
+.dev.vars
+
+# Testing
+
+coverage/
+
+# Optional: lock files (choose based on your package manager)
+
+# package-lock.json
+
+# yarn.lock
+
+# pnpm-lock.yaml

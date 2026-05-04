@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,16 +18,17 @@ function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useRouter().navigate;
 
   useEffect(() => {
     const stored = localStorage.getItem("dt_reset_email");
     if (!stored) {
-      if (typeof window !== "undefined") window.location.href = "/forgot-password";
+      navigate({ to: "/forgot-password" });
       return;
     }
 
     setEmail(stored);
-  }, []);
+  }, [navigate]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +54,7 @@ function ResetPasswordPage() {
       });
       setSuccess("Password reset successfully");
       localStorage.removeItem("dt_reset_email");
-      window.location.href = "/login";
+      navigate({ to: "/login" });
     } catch (authError) {
       console.error("reset password error:", authError);
       setError(authError instanceof Error ? authError.message : "Failed to reset password");

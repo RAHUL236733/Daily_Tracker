@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/habits/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,13 +18,19 @@ function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const auth = useAuth();
+  const navigate = useRouter().navigate;
+
+  useEffect(() => {
+    if (auth.isAuthenticated) {
+      void navigate({ to: "/" });
+    }
+  }, [auth.isAuthenticated, navigate]);
 
   if (auth.isLoading) {
     return <div className="mx-auto max-w-md py-10 text-sm text-muted-foreground">Loading session...</div>;
   }
 
   if (auth.isAuthenticated) {
-    if (typeof window !== "undefined") window.location.href = "/";
     return null;
   }
 
@@ -35,6 +41,7 @@ function RegisterPage() {
 
     try {
       await auth.register(name, email, password);
+      navigate({ to: "/" });
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Registration failed");
     } finally {

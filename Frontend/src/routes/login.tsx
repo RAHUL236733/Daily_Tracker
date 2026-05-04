@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/habits/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +17,13 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const auth = useAuth();
+  const navigate = useRouter().navigate;
 
-  if (auth.isAuthenticated) {
-    if (typeof window !== "undefined") window.location.href = "/";
-    return null;
-  }
+  useEffect(() => {
+    if (auth.isAuthenticated) {
+      void navigate({ to: "/" });
+    }
+  }, [auth.isAuthenticated, navigate]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +32,7 @@ function LoginPage() {
 
     try {
       await auth.login(email, password);
+      navigate({ to: "/" });
     } catch (authError) {
       console.error("Login error", authError);
       setError(authError instanceof Error ? authError.message : "Login failed");
@@ -37,6 +40,14 @@ function LoginPage() {
       setLoading(false);
     }
   };
+
+  const isNotRegisteredError = error && error.includes('Not registered');
+  const displayError = error && !isNotRegisteredError ? error : null;
+  const sessionNotice = auth.authNotice;
+
+  if (auth.isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="mx-auto max-w-md">
@@ -65,18 +76,24 @@ function LoginPage() {
           />
         </div>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {sessionNotice ? <p className="text-sm font-medium text-red-500">{sessionNotice}</p> : null}
+        {displayError ? <p className="text-sm text-destructive">{displayError}</p> : null}
 
-        <div className="flex items-center justify-between">
-          <a
-            href="/forgot-password"
-            className="text-indigo-600 hover:underline cursor-pointer text-sm"
-          >
-            Forgot Password?
-          </a>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
-          </Button>
+        <div className="space-y-2">
+          {isNotRegisteredError ? (
+            <p className="text-sm text-red-500 font-medium">Not registered. Please sign up first.</p>
+          ) : null}
+          <div className="flex items-center justify-between">
+            <a
+              href="/forgot-password"
+              className="text-indigo-600 hover:underline cursor-pointer text-sm"
+            >
+              Forgot Password?
+            </a>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Signing in..." : "Sign in"}
+            </Button>
+          </div>
         </div>
       </form>
 

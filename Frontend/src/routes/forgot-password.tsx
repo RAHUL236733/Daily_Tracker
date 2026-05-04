@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { postJson } from "@/lib/api";
+import { postJson, buildApiUrl } from "@/lib/api";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({ meta: [{ title: "Reset Password — Habit Tracker" }] }),
@@ -20,6 +20,7 @@ function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
+  const navigate = useRouter().navigate;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,14 +31,29 @@ function ForgotPasswordPage() {
       return;
     }
     setLoading(true);
+    // Resolve and show the URL we will call — useful for debugging "Failed to fetch" in-browser
+    const resolved = buildApiUrl("/api/auth/forgot-password");
+
     try {
-      await postJson<{ success: boolean; message: string }>("/api/auth/forgot-password", { email });
+      await postJson<{ success: boolean; message: string }>(resolved, { email });
       setSuccess("OTP sent successfully");
       localStorage.setItem("dt_reset_email", email);
-      window.location.href = "/verify-otp";
+      navigate({ to: "/verify-otp" });
     } catch (authError) {
+      // eslint-disable-next-line no-console
       console.error("forgot-password error:", authError);
-      setError(authError instanceof Error ? authError.message : "Failed to send OTP");
+
+      if (authError instanceof Error) {
+        // If the thrown error includes a URL (enhanced by apiJson), prefer a friendlier message
+        const url = (authError as any).url || resolved;
+        if (authError.message === "Failed to fetch" || authError.message === "NetworkError when attempting to fetch resource.") {
+          setError(`Network error connecting to ${url}. Check backend is running, CORS, and dev server URL.`);
+        } else {
+          setError(`${authError.message} (${url})`);
+        }
+      } else {
+        setError("Failed to send OTP");
+      }
     } finally {
       setLoading(false);
     }

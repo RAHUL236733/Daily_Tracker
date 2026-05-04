@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
+import mongoSanitize from 'express-mongo-sanitize';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import connectDB from './config/db.js';
@@ -10,55 +14,68 @@ import logRoutes from './routes/logRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import habitRoutes from './routes/habitRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 
 // Load environment variables
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: `${__dirname}/.env` });
 
 const app = express();
+app.set('trust proxy', 1);
+
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigins = [process.env.FRONTEND_URL];
+
+if (!isProduction) {
+  allowedOrigins.push('http://localhost:5173', 'http://127.0.0.1:5173');
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., server-to-server or same-origin in some environments)
+    if (!origin) return callback(null, true);
+
+    // Allow explicit configured origins
+    if (allowedOrigins.filter(Boolean).includes(origin)) {
+      return callback(null, true);
+    }
+
+    // In development, allow any localhost/127.0.0.1 origin regardless of port
+    if (!isProduction) {
+      try {
+        const parsed = new URL(origin);
+        const hostname = parsed.hostname;
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          return callback(null, true);
+        }
+      } catch (e) {
+        // If origin isn't a valid URL for some reason, fall through to deny
+      }
+    }
+
+    return callback(new Error('CORS origin not allowed'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
 // Middleware
-// Configure CORS to allow common local dev origins (localhost and 127.0.0.1)
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-].filter(Boolean);
-
-app.use((req, res, next) => {
-  // Log incoming origin for debugging CORS issues
-  // eslint-disable-next-line no-console
-  console.log('Incoming Origin:', req.headers.origin);
-  next();
-});
-
-app.use(
-  cors({
-      origin: (origin, callback) => {
-        // allow requests with no origin (eg. curl, server-to-server)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) return callback(null, true);
-
-        // allow any localhost or 127.0.0.1 origin on any port during development
-        const localhostRegex = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
-        if (localhostRegex.test(origin)) return callback(null, true);
-
-        return callback(new Error('CORS origin not allowed'));
-      },
-    credentials: true,
-  })
-);
+app.use(helmet());
+app.use(cors(corsOptions));
 
 // Ensure preflight requests are handled
-app.options('*', cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.options('*', cors(corsOptions));
+app.use(cookieParser());
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(mongoSanitize());
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(req.method, req.path);
-  next();
-});
+if (isProduction) {
+  app.use(morgan('combined'));
+} else {
+  app.use(morgan('dev'));
+}
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -74,15 +91,10 @@ app.use('/api/user', userRoutes);
 app.use('/api/logs', logRoutes);
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
-});
+app.use(notFound);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
-  res.status(500).json({ success: false, message: 'Internal server error' });
-});
+app.use(errorHandler);
 
 const startServer = async () => {
   try {
@@ -90,7 +102,7 @@ const startServer = async () => {
     await connectDB();
 
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`
 ╔════════════════════════════════════════╗
 ║  Daily Habit Tracker Backend Running  ║
@@ -98,6 +110,16 @@ const startServer = async () => {
 ║  Environment: ${process.env.NODE_ENV || 'development'} ║
 ╚════════════════════════════════════════╝
   `);
+    });
+
+    server.on('error', (error) => {
+      if (error?.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Stop the existing process or set a different PORT.`);
+        process.exit(1);
+      }
+
+      console.error(`Server listen error: ${error.message}`);
+      process.exit(1);
     });
   } catch (error) {
     console.error(`Server start failed: ${error.message}`);

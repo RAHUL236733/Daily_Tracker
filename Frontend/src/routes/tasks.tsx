@@ -4,7 +4,6 @@ import { AddTaskDialog } from "@/components/habits/AddTaskDialog";
 import { PageHeader } from "@/components/habits/PageHeader";
 import { type Task } from "@/lib/data";
 import { useTasks } from "@/lib/tasksContext";
-import { useAuth } from "@/lib/auth";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useRouterState } from "@tanstack/react-router";
 
@@ -20,7 +19,6 @@ export const Route = createFileRoute("/tasks")({
 
 function TasksPage() {
   const { tasks, addTask, toggle } = useTasks();
-  const auth = useAuth();
   const search = useRouterState({ select: (state) => state.location.search });
 
   const params = new URLSearchParams(search || "");
@@ -34,13 +32,6 @@ function TasksPage() {
     });
   };
 
-  if (auth.isLoading) {
-    return <div className="mx-auto max-w-5xl py-10 text-sm text-muted-foreground">Loading tasks...</div>;
-  }
-  if (!auth.isAuthenticated) {
-    if (typeof window !== "undefined") window.location.href = "/login";
-    return null;
-  }
   const add = addTask;
 
   const filters = {

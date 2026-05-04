@@ -1,10 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Moon, Sun, Search, Menu, Bot } from "lucide-react";
+import { Moon, Sun, Search, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { ProfileDropdown } from "./ProfileDropdown";
-import { ChatbotWidget } from "./ChatbotWidget";
 import { useAuth } from "@/lib/auth";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 
@@ -12,7 +11,6 @@ export function Topbar() {
   const { theme, toggle } = useTheme();
   const auth = useAuth();
   const navigate = useNavigate();
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const { pathname, search } = useRouterState({
     select: (state) => ({ pathname: state.location.pathname, search: state.location.search }),
   });
@@ -67,18 +65,6 @@ export function Topbar() {
 
       {/* Right side actions container */}
       <div className="ml-auto flex flex-shrink-0 items-center gap-4 md:gap-5">
-        {/* Chat Assistant Icon */}
-        {auth.isAuthenticated && (
-          <Button
-            variant="ghost"
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            aria-label="Open chat assistant"
-            className="h-11 w-11 rounded-full p-0 transition-transform hover:bg-gray-100 hover:scale-105 active:scale-95"
-          >
-            <Bot className="h-6 w-6" />
-          </Button>
-        )}
-
         {/* Profile Dropdown or Sign In */}
         {auth.isAuthenticated ? (
           <ProfileDropdown />
@@ -88,9 +74,6 @@ export function Topbar() {
           </a>
         )}
       </div>
-
-      {/* Chatbot Widget */}
-      <ChatbotWidget isOpen={isChatOpen} onOpenChange={setIsChatOpen} />
     </header>
   );
 }

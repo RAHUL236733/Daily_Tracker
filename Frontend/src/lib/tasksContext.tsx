@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { type Category, type Task } from "./data";
 import { getJson, patchJson, postJson } from "@/lib/api";
+import { useNotifications } from "@/lib/notifications";
 import { useAuth } from "@/lib/auth";
 
 type TasksContextType = {
@@ -38,6 +39,7 @@ const TasksContext = createContext<TasksContextType | undefined>(undefined);
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const auth = useAuth();
+  const { push } = useNotifications();
 
   useEffect(() => {
     let mounted = true;
@@ -62,7 +64,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [auth.isAuthenticated, auth.user?.token]);
+  }, [auth.isAuthenticated, auth.user?._id]);
 
   const addTask = (t: Task) => {
     const durationValue = Number.parseInt(String(t.duration).replace(/\D/g, ""), 10);
@@ -89,6 +91,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     patchJson<{ success: boolean }>(`/api/tasks/${id}/complete`, {})
       .then(() => {
         setTasks((current) => current.map((t) => (t.id === id ? { ...t, completed: true } : t)));
+        if (push) push({ title: "Habit completed", body: `${task.name} marked done. Nice!`, tone: "success" });
       })
       .catch((error) => {
         // eslint-disable-next-line no-console
