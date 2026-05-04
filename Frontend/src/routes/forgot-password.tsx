@@ -1,28 +1,23 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { postJson, buildApiUrl } from "@/lib/api";
 
-export const Route = createFileRoute("/forgot-password")({
-  head: () => ({ meta: [{ title: "Reset Password — Habit Tracker" }] }),
-  component: ForgotPasswordPage,
-});
-
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function ForgotPasswordPage() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
-  const navigate = useRouter().navigate;
+  const navigate = useNavigate();
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -38,7 +33,7 @@ function ForgotPasswordPage() {
       await postJson<{ success: boolean; message: string }>(resolved, { email });
       setSuccess("OTP sent successfully");
       localStorage.setItem("dt_reset_email", email);
-      navigate({ to: "/verify-otp" });
+      navigate("/verify-otp");
     } catch (authError) {
       // eslint-disable-next-line no-console
       console.error("forgot-password error:", authError);
@@ -46,8 +41,13 @@ function ForgotPasswordPage() {
       if (authError instanceof Error) {
         // If the thrown error includes a URL (enhanced by apiJson), prefer a friendlier message
         const url = (authError as any).url || resolved;
-        if (authError.message === "Failed to fetch" || authError.message === "NetworkError when attempting to fetch resource.") {
-          setError(`Network error connecting to ${url}. Check backend is running, CORS, and dev server URL.`);
+        if (
+          authError.message === "Failed to fetch" ||
+          authError.message === "NetworkError when attempting to fetch resource."
+        ) {
+          setError(
+            `Network error connecting to ${url}. Check backend is running, CORS, and dev server URL.`,
+          );
         } else {
           setError(`${authError.message} (${url})`);
         }
@@ -71,18 +71,39 @@ function ForgotPasswordPage() {
             <form onSubmit={submit} className="space-y-4">
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2"
+                />
               </div>
 
               {error && <p className="text-sm text-destructive">{error}</p>}
               {success && <p className="text-sm text-green-600">{success}</p>}
 
               <div className="flex justify-end">
-                <Button type="submit" className="bg-indigo-600 text-white rounded-xl px-4 py-2 hover:bg-indigo-500 transition-all duration-150 ease-out active:scale-[0.97]">
+                <Button
+                  type="submit"
+                  className="bg-indigo-600 text-white rounded-xl px-4 py-2 hover:bg-indigo-500 transition-all duration-150 ease-out active:scale-[0.97]"
+                >
                   {loading ? (
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
                     </svg>
                   ) : (
                     "Send OTP"

@@ -5,15 +5,13 @@ import { useTheme } from "@/lib/theme";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { ProfileDropdown } from "./ProfileDropdown";
 import { useAuth } from "@/lib/auth";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export function Topbar() {
   const { theme, toggle } = useTheme();
   const auth = useAuth();
   const navigate = useNavigate();
-  const { pathname, search } = useRouterState({
-    select: (state) => ({ pathname: state.location.pathname, search: state.location.search }),
-  });
+  const { pathname, search } = useLocation();
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -28,10 +26,7 @@ export function Topbar() {
     e.preventDefault();
     const q = query.trim();
 
-    navigate({
-      to: "/tasks",
-      search: q ? { q } : {},
-    });
+    navigate(`/tasks${q ? `?q=${encodeURIComponent(q)}` : ""}`);
   };
 
   return (
@@ -57,8 +52,18 @@ export function Topbar() {
         </button>
       </form>
 
-      <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="transition-transform active:scale-95">
-        {theme === "light" ? <Moon className="h-[1.15rem] w-[1.15rem]" /> : <Sun className="h-[1.15rem] w-[1.15rem]" />}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggle}
+        aria-label="Toggle theme"
+        className="transition-transform active:scale-95"
+      >
+        {theme === "light" ? (
+          <Moon className="h-[1.15rem] w-[1.15rem]" />
+        ) : (
+          <Sun className="h-[1.15rem] w-[1.15rem]" />
+        )}
       </Button>
 
       <NotificationsMenu />
@@ -69,9 +74,12 @@ export function Topbar() {
         {auth.isAuthenticated ? (
           <ProfileDropdown />
         ) : (
-          <a href="/login" className="rounded-md px-3 py-1 text-sm transition hover:bg-muted active:scale-95">
+          <Link
+            to="/login"
+            className="rounded-md px-3 py-1 text-sm transition hover:bg-muted active:scale-95"
+          >
             Sign in
-          </a>
+          </Link>
         )}
       </div>
     </header>

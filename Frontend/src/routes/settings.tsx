@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/habits/PageHeader";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,17 +7,7 @@ import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { useEffect, useState } from "react";
 
-export const Route = createFileRoute("/settings")({
-  head: () => ({
-    meta: [
-      { title: "Settings — Habit Tracker" },
-      { name: "description", content: "Manage your account and preferences." },
-    ],
-  }),
-  component: SettingsPage,
-});
-
-function SettingsPage() {
+export default function SettingsPage() {
   const { theme, toggle } = useTheme();
   const { user } = useAuth();
   const [name, setName] = useState("");

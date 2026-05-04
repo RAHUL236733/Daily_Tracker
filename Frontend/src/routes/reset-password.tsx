@@ -1,36 +1,31 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { postJson } from "@/lib/api";
 
-export const Route = createFileRoute("/reset-password")({
-  head: () => ({ meta: [{ title: "Reset Password — Habit Tracker" }] }),
-  component: ResetPasswordPage,
-});
-
-function ResetPasswordPage() {
+export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useRouter().navigate;
+  const navigate = useNavigate();
 
   useEffect(() => {
     const stored = localStorage.getItem("dt_reset_email");
     if (!stored) {
-      navigate({ to: "/forgot-password" });
+      navigate("/forgot-password");
       return;
     }
 
     setEmail(stored);
   }, [navigate]);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -54,7 +49,7 @@ function ResetPasswordPage() {
       });
       setSuccess("Password reset successfully");
       localStorage.removeItem("dt_reset_email");
-      navigate({ to: "/login" });
+      navigate("/login");
     } catch (authError) {
       console.error("reset password error:", authError);
       setError(authError instanceof Error ? authError.message : "Failed to reset password");
@@ -80,12 +75,22 @@ function ResetPasswordPage() {
 
               <div>
                 <Label htmlFor="newPassword">New password</Label>
-                <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
               </div>
 
               <div>
                 <Label htmlFor="confirmPassword">Confirm password</Label>
-                <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
               </div>
 
               {error && <p className="text-sm text-destructive">{error}</p>}

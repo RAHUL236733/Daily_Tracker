@@ -1,15 +1,21 @@
 import type { ReactNode } from "react";
-import { useRouterState } from "@tanstack/react-router";
+import { useLocation } from "react-router-dom";
 import { AppSidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import { useAuth } from "@/lib/auth";
 
 export function AppLayout({ children }: { children: ReactNode }) {
-  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const pathname = useLocation().pathname;
   const auth = useAuth();
 
-  const isAuthPage = ["/login", "/register", "/forgot-password", "/verify-otp", "/reset-password"].includes(pathname);
+  const isAuthPage = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/verify-otp",
+    "/reset-password",
+  ].includes(pathname);
 
   if (isAuthPage) {
     return <main className="min-h-screen bg-background text-foreground">{children}</main>;

@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
 import { Flame, Target, TrendingUp, CheckCircle2, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/habits/PageHeader";
@@ -12,17 +11,7 @@ import { getJson } from "@/lib/api";
 import { useNotifications } from "@/lib/notifications";
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, CartesianGrid } from "recharts";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Dashboard — Habit Tracker" },
-      { name: "description", content: "Your daily progress, streaks, and habits at a glance." },
-    ],
-  }),
-  component: Dashboard,
-});
-
-function Dashboard() {
+export default function DashboardPage() {
   const { tasks, addTask, toggle } = useTasks();
   const auth = useAuth();
 
@@ -91,7 +80,8 @@ function Dashboard() {
   useEffect(() => {
     const prev = prevStreakRef.current;
     const curr = dashboard.overallStreak;
-    const isAllDone = dashboard.totalHabits > 0 && dashboard.completedHabitsToday === dashboard.totalHabits;
+    const isAllDone =
+      dashboard.totalHabits > 0 && dashboard.completedHabitsToday === dashboard.totalHabits;
 
     // Prime refs on first dashboard sync to avoid firing notifications on route remount.
     if (prev === null || prevAllDoneRef.current === null) {
