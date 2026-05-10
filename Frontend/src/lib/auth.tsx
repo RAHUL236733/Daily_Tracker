@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { apiJson, buildApiUrl, postJson } from "@/lib/api";
 
 type User = { _id: string; name: string; email: string; role?: "user" | "admin" } | null;
+
 const AUTH_NOTICE_KEY = "dt_auth_notice";
 const SESSION_EXPIRED_EVENT = "dt:session-expired";
 
@@ -31,9 +32,12 @@ const requestCurrentUser = async (signal?: AbortSignal) => {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error((data as { message?: string })?.message || "Failed to load profile") as Error & {
+    const error = new Error(
+      (data as { message?: string })?.message || "Failed to load profile"
+    ) as Error & {
       status?: number;
     };
+
     error.status = response.status;
     throw error;
   }
@@ -52,13 +56,8 @@ const loadCurrentUser = async (signal?: AbortSignal) => {
     try {
       await apiJson("/api/auth/refresh", { method: "POST" });
       return requestCurrentUser(signal);
-    } catch (refreshError) {
-      const message = refreshError instanceof Error ? refreshError.message : "";
-      if (/session expired|refresh token is not valid|token is not valid/i.test(message)) {
-        throw new Error("Session expired. Please sign in again.");
-      }
-
-      throw error;
+    } catch {
+      return null;
     }
   }
 };
@@ -66,6 +65,7 @@ const loadCurrentUser = async (signal?: AbortSignal) => {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [isLoading, setIsLoading] = useState(true);
+
   const [authNotice, setAuthNotice] = useState(() => {
     if (typeof window === "undefined") return "";
 
@@ -80,7 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthNotice("");
   };
 
-  const setSessionExpiredNotice = (message = "Session expired. Please sign in again.") => {
+  const setSessionExpiredNotice = (
+    message = "Session expired. Please sign in again."
+  ) => {
     if (typeof window !== "undefined") {
       sessionStorage.setItem(AUTH_NOTICE_KEY, message);
     }
@@ -96,17 +98,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     loadCurrentUser(controller.signal)
       .then((profile) => {
-        setUser(profile);
+        if (profile) {
+          setUser(profile);
+          clearAuthNotice();
+        } else {
+          setUser(null);
+        }
+
         setIsLoading(false);
-        clearAuthNotice();
       })
-      .catch((error) => {
+      .catch(() => {
         setUser(null);
         setIsLoading(false);
-
-        if (error instanceof Error && /session expired/i.test(error.message)) {
-          setSessionExpiredNotice(error.message);
-        }
       })
       .finally(() => {
         window.clearTimeout(timeoutId);
@@ -114,26 +117,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleSessionExpired = (event: Event) => {
       const customEvent = event as CustomEvent<{ message?: string }>;
+
       setUser(null);
       setIsLoading(false);
-      setSessionExpiredNotice(customEvent.detail?.message || "Session expired. Please sign in again.");
+
+      setSessionExpiredNotice(
+        customEvent.detail?.message ||
+          "Session expired. Please sign in again."
+      );
     };
 
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
 
     return () => {
       window.clearTimeout(timeoutId);
-      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+
+      window.removeEventListener(
+        SESSION_EXPIRED_EVENT,
+        handleSessionExpired
+      );
     };
   }, []);
 
   const refreshProfile = async () => {
     setIsLoading(true);
+
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 8000);
 
     try {
-      setUser(await loadCurrentUser(controller.signal));
+      const profile = await loadCurrentUser(controller.signal);
+
+      setUser(profile);
     } catch {
       setUser(null);
     } finally {
@@ -143,28 +158,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const data = await postJson<{ success: boolean; user: NonNullable<User> }>(
-      "/api/auth/login",
-      {
-        email,
-        password,
-      },
-    );
+    const data = await postJson<{
+      success: boolean;
+      user: NonNullable<User>;
+    }>("/api/auth/login", {
+      email,
+      password,
+    });
 
     setUser(data.user);
     setIsLoading(false);
     clearAuthNotice();
   };
 
-  const register = async (name: string, email: string, password: string) => {
-    const data = await postJson<{ success: boolean; user: NonNullable<User> }>(
-      "/api/auth/register",
-      {
-        name,
-        email,
-        password,
-      },
-    );
+  const register = async (
+    name: string,
+    email: string,
+    password: string
+  ) => {
+    const data = await postJson<{
+      success: boolean;
+      user: NonNullable<User>;
+    }>("/api/auth/register", {
+      name,
+      email,
+      password,
+    });
 
     setUser(data.user);
     setIsLoading(false);
@@ -173,8 +192,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     apiJson("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+
     localStorage.removeItem("dt_reset_email");
+
     clearAuthNotice();
+
     setUser(null);
     setIsLoading(false);
   };
@@ -199,6 +221,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+
   return ctx;
 }
