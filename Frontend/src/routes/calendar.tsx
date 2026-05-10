@@ -95,29 +95,47 @@ export default function CalendarPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto w-full max-w-5xl px-4 sm:px-0">
       <PageHeader title="Calendar" subtitle="A bird's-eye view of your consistency." />
 
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
+      <div className="rounded-3xl border border-border bg-card p-4 shadow-soft sm:p-6">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold sm:text-lg">
             {months[activeCursor.m]} {activeCursor.y}
           </h2>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" onClick={() => shift(-1)}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => shift(-1)}
+              className="h-8 w-8 sm:h-9 sm:w-9"
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => shift(1)}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => shift(1)}
+              className="h-8 w-8 sm:h-9 sm:w-9"
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 text-center">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+        <div className="grid grid-cols-7 gap-1 text-center sm:gap-2">
+          {[
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+          ].map((d) => (
             <div
               key={d}
-              className="pb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+              className="pb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:text-[11px]"
             >
               {d}
             </div>
@@ -131,7 +149,7 @@ export default function CalendarPage() {
               <div
                 key={i}
                 className={cn(
-                  "relative aspect-square rounded-xl border p-2 text-left text-sm transition hover:-translate-y-0.5 hover:shadow-soft",
+                  "relative aspect-square rounded-xl border p-1.5 text-left text-[11px] transition hover:-translate-y-0.5 hover:shadow-soft sm:p-2 sm:text-sm",
                   done
                     ? "border-transparent bg-primary-soft text-primary"
                     : "border-border bg-background text-foreground",
@@ -140,7 +158,7 @@ export default function CalendarPage() {
               >
                 <span className="font-semibold">{d}</span>
                 {done && (
-                  <span className="absolute bottom-2 right-2 inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  <span className="absolute bottom-1.5 right-1.5 inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
                     {completedCount}
                   </span>
                 )}
@@ -157,7 +175,7 @@ export default function CalendarPage() {
             <span className="h-3 w-3 rounded ring-2 ring-primary" /> Today
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded bg-background border border-border" /> Missed /
+            <span className="h-3 w-3 rounded border border-border bg-background" /> Missed /
             upcoming
           </div>
         </div>

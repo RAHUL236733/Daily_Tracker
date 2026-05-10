@@ -52,7 +52,7 @@ export function NotificationsMenu() {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-[340px] rounded-2xl p-0 shadow-elevated"
+        className="w-[calc(100vw-1rem)] max-w-[340px] rounded-2xl p-0 shadow-elevated"
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>

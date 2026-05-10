@@ -59,9 +59,9 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto w-full max-w-md px-4 sm:px-0">
       <div className="flex justify-center">
-        <Card className="w-full rounded-2xl bg-white p-6 shadow-lg dark:bg-card">
+        <Card className="w-full rounded-2xl bg-white p-4 shadow-lg dark:bg-card sm:p-6">
           <CardHeader>
             <CardTitle>Reset password</CardTitle>
             <CardDescription>Set a new password for your account</CardDescription>
@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
             <form onSubmit={submit} className="space-y-4">
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" value={email} disabled />
+                <Input id="email" value={email} disabled className="mt-1" />
               </div>
 
               <div>
@@ -80,6 +80,7 @@ export default function ResetPasswordPage() {
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  className="mt-1"
                 />
               </div>
 
@@ -90,6 +91,7 @@ export default function ResetPasswordPage() {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="mt-1"
                 />
               </div>
 
@@ -97,7 +99,7 @@ export default function ResetPasswordPage() {
               {success && <p className="text-sm text-green-600">{success}</p>}
 
               <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                   {loading ? "Resetting..." : "Reset password"}
                 </Button>
               </div>

@@ -30,7 +30,7 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto w-full max-w-5xl px-4 sm:px-0">
       <PageHeader
         title="All tasks"
         subtitle={
@@ -42,14 +42,14 @@ export default function TasksPage() {
       />
 
       <Tabs defaultValue="all">
-        <TabsList className="rounded-xl bg-muted/60 p-1">
-          <TabsTrigger value="all" className="rounded-lg">
+        <TabsList className="flex w-full flex-wrap gap-2 rounded-xl bg-muted/60 p-1">
+          <TabsTrigger value="all" className="flex-1 rounded-lg">
             All ({filters.all.length})
           </TabsTrigger>
-          <TabsTrigger value="pending" className="rounded-lg">
+          <TabsTrigger value="pending" className="flex-1 rounded-lg">
             Pending ({filters.pending.length})
           </TabsTrigger>
-          <TabsTrigger value="completed" className="rounded-lg">
+          <TabsTrigger value="completed" className="flex-1 rounded-lg">
             Done ({filters.completed.length})
           </TabsTrigger>
         </TabsList>

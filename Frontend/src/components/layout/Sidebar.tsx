@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, ListChecks, Calendar, BarChart3, Settings, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const items = [
+export const sidebarItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Tasks", url: "/tasks", icon: ListChecks },
   { title: "Calendar", url: "/calendar", icon: Calendar },
@@ -13,22 +13,22 @@ const items = [
 export function AppSidebar() {
   const path = useLocation().pathname;
   return (
-    <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex items-center gap-2.5 px-6 h-16 border-b border-sidebar-border">
+    <aside className="hidden md:flex md:w-64 lg:w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
           <Sparkles className="h-4.5 w-4.5" strokeWidth={2.5} />
         </div>
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-sidebar-foreground">Habit Tracker</p>
+          <p className="text-sm font-semibold text-sidebar-foreground md:text-base">Habit Tracker</p>
           <p className="text-[11px] text-muted-foreground">Build better days</p>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-5 space-y-1">
+      <nav className="flex-1 space-y-1 px-3 py-5">
         <p className="px-3 pb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Workspace
         </p>
-        {items.map((item) => {
+        {sidebarItems.map((item) => {
           const active = path === item.url;
           return (
             <Link

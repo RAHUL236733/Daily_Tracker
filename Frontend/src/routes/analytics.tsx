@@ -113,10 +113,10 @@ export default function AnalyticsPage() {
     categoryBreakdown.length > 0 ? categoryBreakdown : [{ name: "No data", value: 1 }];
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-0">
       <PageHeader title="Analytics" subtitle="Track your performance and find patterns." />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Completion rate"
           value={`${dashboard.completionPercentage}%`}
@@ -147,12 +147,12 @@ export default function AnalyticsPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3 rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <div className="mb-2 flex items-end justify-between">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
+        <div className="rounded-3xl border border-border bg-card p-4 shadow-soft lg:col-span-3 sm:p-6">
+          <div className="mb-2 flex items-end justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold">Weekly progress</p>
-              <p className="text-xs text-muted-foreground">Tasks completed by day</p>
+              <p className="text-sm font-semibold md:text-base">Weekly progress</p>
+              <p className="text-xs text-muted-foreground md:text-sm">Tasks completed by day</p>
             </div>
             <span className="rounded-full bg-success/15 px-2.5 py-1 text-xs font-medium text-[oklch(0.45_0.12_155)] dark:text-[oklch(0.85_0.12_155)]">
               ↑ 6%
@@ -206,10 +206,10 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <p className="text-sm font-semibold">By category</p>
-          <p className="text-xs text-muted-foreground">Distribution of completed habits</p>
-          <div className="h-72">
+        <div className="rounded-3xl border border-border bg-card p-4 shadow-soft lg:col-span-2 sm:p-6">
+          <p className="text-sm font-semibold md:text-base">By category</p>
+          <p className="text-xs text-muted-foreground md:text-sm">Distribution of completed habits</p>
+          <div className="h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie

@@ -45,7 +45,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto w-full max-w-md px-4 sm:px-0">
       <PageHeader title="Sign in" subtitle="Access your habit dashboard." />
 
       {auth.isLoading ? (
@@ -54,11 +54,17 @@ export default function LoginPage() {
 
       <form
         onSubmit={submit}
-        className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-6"
+        className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-6"
       >
         <div>
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1"
+          />
         </div>
 
         <div>
@@ -68,6 +74,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className="mt-1"
           />
         </div>
 
@@ -80,21 +87,21 @@ export default function LoginPage() {
               Not registered. Please sign up first.
             </p>
           ) : null}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link
               to="/forgot-password"
               className="cursor-pointer text-sm text-indigo-600 hover:underline"
             >
               Forgot Password?
             </Link>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </div>
         </div>
       </form>
 
-      <div className="mt-4 text-sm text-muted-foreground">
+      <div className="mt-4 text-center text-sm text-muted-foreground sm:text-left">
         Don't have an account?{" "}
         <Link to="/register" className="text-primary">
           Register

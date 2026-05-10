@@ -6,7 +6,7 @@ export function TaskCard({ task, onToggle }: { task: Task; onToggle: (id: string
   return (
     <div
       className={cn(
-        "group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-elevated",
+        "group flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-elevated sm:flex-row sm:items-center sm:gap-4",
         task.completed && "opacity-70"
       )}
     >
@@ -27,7 +27,7 @@ export function TaskCard({ task, onToggle }: { task: Task; onToggle: (id: string
         <p className={cn("truncate text-sm font-semibold", task.completed && "line-through text-muted-foreground")}>
           {task.name}
         </p>
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-1 flex flex-wrap items-center gap-2">
           <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", categoryStyles[task.category])}>
             {task.category}
           </span>

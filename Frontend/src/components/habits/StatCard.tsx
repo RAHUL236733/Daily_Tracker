@@ -14,12 +14,12 @@ export function StatCard({
     accent: "bg-accent text-accent-foreground",
   };
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-soft transition hover:shadow-elevated">
-      <div className="flex items-start justify-between">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-soft transition hover:shadow-elevated sm:p-5">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight">{value}</p>
-          {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+          <p className="mt-2 text-xl font-bold tracking-tight md:text-2xl">{value}</p>
+          {hint && <p className="mt-1 text-xs text-muted-foreground md:text-sm">{hint}</p>}
         </div>
         <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", accents[accent])}>
           <Icon className="h-5 w-5" />

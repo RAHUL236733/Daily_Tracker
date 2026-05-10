@@ -60,9 +60,9 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto w-full max-w-md px-4 sm:px-0">
       <div className="flex justify-center">
-        <Card className="bg-white dark:bg-card rounded-2xl shadow-lg p-6 w-full">
+        <Card className="w-full rounded-2xl bg-white p-4 shadow-lg dark:bg-card sm:p-6">
           <CardHeader>
             <CardTitle>Reset your password</CardTitle>
             <CardDescription>Enter your email to receive an OTP</CardDescription>
@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2"
+                  className="mt-1 border border-gray-300 rounded-lg px-3 py-2"
                 />
               </div>
 
@@ -86,7 +86,7 @@ export default function ForgotPasswordPage() {
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  className="bg-indigo-600 text-white rounded-xl px-4 py-2 hover:bg-indigo-500 transition-all duration-150 ease-out active:scale-[0.97]"
+                  className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-white transition-all duration-150 ease-out hover:bg-indigo-500 active:scale-[0.97] sm:w-auto"
                 >
                   {loading ? (
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
