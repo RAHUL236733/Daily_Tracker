@@ -1,8 +1,12 @@
-const isLocalHost = (value: string) => /^(localhost|127\.0\.0\.1)$/i.test(value);
+const isLocalHost = (value: string) =>
+  /^(localhost|127\.0\.0\.1)$/i.test(value);
 
 const resolveApiBaseUrl = () => {
   const configuredUrl = import.meta.env.VITE_API_URL;
-  if (configuredUrl) return configuredUrl;
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, "");
+  }
 
   if (typeof window !== "undefined") {
     const { protocol, hostname } = window.location;
@@ -18,7 +22,9 @@ const resolveApiBaseUrl = () => {
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
+
 const AUTH_REFRESH_ENDPOINT = "/api/auth/refresh";
+
 const PUBLIC_AUTH_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/register",
@@ -26,13 +32,15 @@ const PUBLIC_AUTH_PATHS = new Set([
   "/api/auth/verify-otp",
   "/api/auth/reset-password",
   "/api/auth/logout",
-  "/api/auth/me",
   AUTH_REFRESH_ENDPOINT,
 ]);
+
 const SESSION_EXPIRED_EVENT = "dt:session-expired";
 
 const isSessionExpiredMessage = (message: string) =>
-  /session expired|refresh token is not valid|token is not valid|refresh token missing/i.test(message);
+  /session expired|refresh token is not valid|token is not valid|refresh token missing/i.test(
+    message
+  );
 
 const getPathname = (url: string) => {
   try {
@@ -42,18 +50,31 @@ const getPathname = (url: string) => {
   }
 };
 
-const emitSessionExpired = (message: string) => {
+const emitSessionExpired = (
+  message = "Session expired. Please sign in again."
+) => {
   if (typeof window === "undefined") return;
 
-  const detail = { message };
   sessionStorage.setItem("dt_auth_notice", message);
-  window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT, { detail }));
+
+  window.dispatchEvent(
+    new CustomEvent(SESSION_EXPIRED_EVENT, {
+      detail: { message },
+    })
+  );
 };
+
+function buildApiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  return `${API_BASE_URL}${normalizedPath}`;
+}
 
 const refreshSession = async () => {
   const response = await fetch(buildApiUrl(AUTH_REFRESH_ENDPOINT), {
     method: "POST",
-    mode: "cors",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -63,61 +84,69 @@ const refreshSession = async () => {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error((data as { message?: string })?.message || "Session expired. Please sign in again.") as Error & {
-      status?: number;
-    };
-    error.status = response.status;
-    throw error;
+    throw new Error(
+      (data as { message?: string })?.message ||
+        "Session expired. Please sign in again."
+    );
   }
 
   return data;
 };
 
-function buildApiUrl(path: string) {
-  // If caller passed a full URL, use it as-is
-  if (/^https?:\/\//i.test(path)) return path;
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const baseUrl = API_BASE_URL.endsWith("/api") ? API_BASE_URL.slice(0, -4) : API_BASE_URL;
-
-  return `${baseUrl}${normalizedPath}`;
-}
-
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
-
-export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiJson<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
   const url = buildApiUrl(path);
+
   const pathname = getPathname(url);
-  const shouldRefreshOn401 = pathname.startsWith("/api/") && !PUBLIC_AUTH_PATHS.has(pathname);
+
+  const shouldRefreshOn401 =
+    pathname.startsWith("/api/") &&
+    !PUBLIC_AUTH_PATHS.has(pathname);
+
+  const request = async () => {
+    const response = await fetch(url, {
+      credentials: "include",
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init.headers || {}),
+      },
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    return { response, data };
+  };
 
   try {
-    const request = async () => {
-      const response = await fetch(url, {
-        mode: "cors",
-        credentials: "include",
-        ...init,
-        headers: {
-          "Content-Type": "application/json",
-          ...(init.headers || {}),
-        },
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      return { response, data };
-    };
-
     let { response, data } = await request();
 
-    if (!response.ok && response.status === 401 && shouldRefreshOn401) {
+    if (
+      response.status === 401 &&
+      shouldRefreshOn401
+    ) {
       try {
         await refreshSession();
+
         ({ response, data } = await request());
       } catch (refreshError) {
-        const refreshMessage = refreshError instanceof Error ? refreshError.message : "Session expired. Please sign in again.";
+        const refreshMessage =
+          refreshError instanceof Error
+            ? refreshError.message
+            : "Session expired. Please sign in again.";
 
         if (isSessionExpiredMessage(refreshMessage)) {
-          emitSessionExpired("Session expired. Please sign in again.");
+          emitSessionExpired();
         }
 
         throw refreshError;
@@ -125,42 +154,39 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
     }
 
     if (!response.ok) {
-      const error = new Error((data as { message?: string })?.message || "Request failed") as Error & {
+      const error = new Error(
+        (data as { message?: string })?.message ||
+          "Request failed"
+      ) as Error & {
         status?: number;
       };
+
       error.status = response.status;
+
       throw error;
     }
 
     return data as T;
-  } catch (err) {
-    // Log detailed network/fetch errors to aid debugging (e.g. CORS, connection refused)
-    // eslint-disable-next-line no-console
-    console.error("apiJson error", { url, init, error: err });
-
-    // Enhance the thrown error with the request URL so callers can display/debug it
-    const enhanced = new Error(err instanceof Error ? err.message : String(err));
-    try {
-      (enhanced as any).name = (err as any)?.name || enhanced.name;
-      (enhanced as any).url = url;
-      (enhanced as any).init = init;
-      (enhanced as any).status = (err as any)?.status;
-    } catch (e) {
-      // ignore
-    }
-
-    throw enhanced;
+  } catch (error) {
+    console.error("API ERROR:", error);
+    throw error;
   }
 }
 
-export async function postJson<T>(path: string, payload: Record<string, JsonValue>): Promise<T> {
+export async function postJson<T>(
+  path: string,
+  payload: Record<string, JsonValue>
+): Promise<T> {
   return apiJson<T>(path, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export async function patchJson<T>(path: string, payload: Record<string, JsonValue>): Promise<T> {
+export async function patchJson<T>(
+  path: string,
+  payload: Record<string, JsonValue>
+): Promise<T> {
   return apiJson<T>(path, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -168,7 +194,9 @@ export async function patchJson<T>(path: string, payload: Record<string, JsonVal
 }
 
 export async function getJson<T>(path: string): Promise<T> {
-  return apiJson<T>(path, { method: "GET" });
+  return apiJson<T>(path, {
+    method: "GET",
+  });
 }
 
 export { buildApiUrl };
