@@ -24,34 +24,23 @@ const app = express();
 app.set('trust proxy', 1);
 
 const isProduction = process.env.NODE_ENV === 'production';
-const allowedOrigins = [process.env.FRONTEND_URL];
+const configuredFrontend = (process.env.FRONTEND_URL || '').replace(/\/$/, '') || undefined;
 
+// Build a simple whitelist that includes the configured frontend and local dev hosts
+const allowedOrigins = new Set();
+if (configuredFrontend) allowedOrigins.add(configuredFrontend);
 if (!isProduction) {
-  allowedOrigins.push('http://localhost:5173', 'http://127.0.0.1:5173');
+  allowedOrigins.add('http://localhost:5173');
+  allowedOrigins.add('http://127.0.0.1:5173');
 }
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., server-to-server or same-origin in some environments)
+    // Allow requests with no origin (server-to-server or same-origin from certain tools)
     if (!origin) return callback(null, true);
 
-    // Allow explicit configured origins
-    if (allowedOrigins.filter(Boolean).includes(origin)) {
-      return callback(null, true);
-    }
-
-    // In development, allow any localhost/127.0.0.1 origin regardless of port
-    if (!isProduction) {
-      try {
-        const parsed = new URL(origin);
-        const hostname = parsed.hostname;
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-          return callback(null, true);
-        }
-      } catch (e) {
-        // If origin isn't a valid URL for some reason, fall through to deny
-      }
-    }
+    // Exact-match only for security; this ensures Access-Control-Allow-Origin is not '*'
+    if (allowedOrigins.has(origin)) return callback(null, true);
 
     return callback(new Error('CORS origin not allowed'));
   },
@@ -64,7 +53,7 @@ const corsOptions = {
 app.use(helmet());
 app.use(cors(corsOptions));
 
-// Ensure preflight requests are handled
+// Ensure preflight requests are handled and credentials header is present for preflight
 app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' }));

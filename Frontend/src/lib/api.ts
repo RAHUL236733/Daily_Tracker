@@ -74,20 +74,19 @@ function buildApiUrl(path: string) {
 
 const refreshSession = async () => {
   const response = await fetch(buildApiUrl(AUTH_REFRESH_ENDPOINT), {
-    method: "POST",
-    credentials: "include",
+    method: 'POST',
+    credentials: 'include',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     },
+    mode: 'cors',
   });
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(
-      (data as { message?: string })?.message ||
-        "Session expired. Please sign in again."
-    );
+    const message = (data as { message?: string })?.message || 'Session expired. Please sign in again.';
+    throw new Error(message);
   }
 
   return data;

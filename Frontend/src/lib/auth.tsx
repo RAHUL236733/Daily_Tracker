@@ -54,9 +54,15 @@ const loadCurrentUser = async (signal?: AbortSignal) => {
     }
 
     try {
-      await apiJson("/api/auth/refresh", { method: "POST" });
+      await apiJson('/api/auth/refresh', { method: 'POST' });
       return requestCurrentUser(signal);
-    } catch {
+    } catch (refreshErr) {
+      // If refresh fails, ensure the UI shows the server-provided message when possible
+      const msg = refreshErr instanceof Error ? refreshErr.message : 'Session expired. Please sign in again.';
+      try {
+        if (typeof window !== 'undefined') sessionStorage.setItem(AUTH_NOTICE_KEY, msg);
+      } catch {}
+
       return null;
     }
   }

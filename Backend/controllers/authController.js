@@ -9,30 +9,31 @@ const REFRESH_TOKEN_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRE || '7d';
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const ACCESS_COOKIE_NAME = 'accessToken';
 
-const resolveCookieSameSite = (secureEnabled) => {
+const resolveCookieSameSite = () => {
   const configured = String(process.env.COOKIE_SAME_SITE || '').trim().toLowerCase();
 
   if (configured === 'strict' || configured === 'lax') return configured;
   if (configured === 'none') return 'none';
 
-  // If cookies are secure (typical production HTTPS), allow cross-site cookie usage.
-  return secureEnabled ? 'none' : 'lax';
+  // Default: allow cross-site cookies in production (when secure), lax otherwise
+  return process.env.NODE_ENV === 'production' ? 'none' : 'lax';
 };
 
 const getCookieOptions = (maxAge) => {
   const forceSecure = String(process.env.COOKIE_SECURE || '').trim().toLowerCase() === 'true';
   const secureByEnv = process.env.NODE_ENV === 'production';
   const secureEnabled = forceSecure || secureByEnv;
-  const sameSite = resolveCookieSameSite(secureEnabled);
+  const sameSite = String(resolveCookieSameSite()).toLowerCase();
 
   const options = {
     httpOnly: true,
-    secure: sameSite === 'none' ? true : secureEnabled,
+    secure: secureEnabled, // ensure secure when in production
     sameSite,
     maxAge,
     path: '/',
   };
 
+  // Only apply domain when explicitly configured. Do NOT set this to the frontend origin.
   const cookieDomain = String(process.env.COOKIE_DOMAIN || '').trim();
   if (cookieDomain) options.domain = cookieDomain;
 
@@ -54,16 +55,20 @@ const generateRefreshToken = (user) =>
   );
 
 const setAuthCookies = (res, accessToken, refreshToken) => {
-  const accessMaxAge = 60 * 60 * 1000;
-  const refreshMaxAge = 7 * 24 * 60 * 60 * 1000;
+  const accessMaxAge = 60 * 60 * 1000; // 1 hour in ms
+  const refreshMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 
   res.cookie(ACCESS_COOKIE_NAME, accessToken, getCookieOptions(accessMaxAge));
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, getCookieOptions(refreshMaxAge));
 };
 
 const clearAuthCookies = (res) => {
-  res.clearCookie(ACCESS_COOKIE_NAME, getCookieOptions(0));
-  res.clearCookie(REFRESH_COOKIE_NAME, getCookieOptions(0));
+  // Use the same options (path/domain/sameSite/secure) when clearing cookies
+  const opts = getCookieOptions(0);
+  // Ensure cookies are expired immediately
+  opts.expires = new Date(0);
+  res.clearCookie(ACCESS_COOKIE_NAME, opts);
+  res.clearCookie(REFRESH_COOKIE_NAME, opts);
 };
 
 const issueTokens = async (user, res) => {
