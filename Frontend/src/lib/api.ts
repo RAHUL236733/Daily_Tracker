@@ -114,7 +114,8 @@ export async function apiJson<T>(
 
   const request = async () => {
     const response = await fetch(url, {
-      credentials: "include",
+      credentials: 'include',
+      mode: 'cors',
       ...init,
       headers: {
         "Content-Type": "application/json",
