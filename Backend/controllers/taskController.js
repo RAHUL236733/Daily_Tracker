@@ -83,6 +83,13 @@ export const createTask = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide title' });
     }
 
+    if (!req.userId) {
+      console.error('[createTask] userId is undefined! Authentication may have failed.');
+      return res.status(401).json({ success: false, message: 'Not authorized to perform this action' });
+    }
+
+    console.log(`[createTask] Creating task for userId: ${req.userId}, title: "${title}"`);
+
     const task = new Task({
       userId: req.userId,
       title: String(title).trim(),
@@ -96,12 +103,15 @@ export const createTask = async (req, res) => {
 
     await task.save();
 
+    console.log(`[createTask] Task created successfully: ${task._id}`);
+
     res.status(201).json({
       success: true,
       message: 'Task created successfully',
       task,
     });
   } catch (error) {
+    console.error('[createTask] Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -373,8 +373,11 @@ export const refreshToken = async (req, res) => {
     const incomingRefreshToken = req.cookies?.refreshToken;
 
     if (!incomingRefreshToken) {
+      console.log('[refresh] No refresh token found in cookies');
       return res.status(401).json({ success: false, message: 'Refresh token missing' });
     }
+
+    console.log('[refresh] Refresh token found, verifying...');
 
     const decoded = jwt.verify(
       incomingRefreshToken,
@@ -383,10 +386,18 @@ export const refreshToken = async (req, res) => {
 
     const user = await User.findById(decoded.userId).select('+refreshTokenHash +role');
 
-    if (!user || !user.refreshTokenHash || !user.matchesRefreshToken(incomingRefreshToken)) {
+    if (!user) {
+      console.log(`[refresh] User not found: ${decoded.userId}`);
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    if (!user.refreshTokenHash || !user.matchesRefreshToken(incomingRefreshToken)) {
+      console.log(`[refresh] Refresh token validation failed for user: ${decoded.userId}`);
       clearAuthCookies(res);
       return res.status(401).json({ success: false, message: 'Refresh token is not valid' });
     }
+
+    console.log(`[refresh] Refresh token valid, issuing new tokens for user: ${decoded.userId}`);
 
     await issueTokens(user, res);
 
@@ -395,6 +406,7 @@ export const refreshToken = async (req, res) => {
       user: user.toJSON(),
     });
   } catch (error) {
+    console.error('[refresh] Refresh token error:', error.message);
     clearAuthCookies(res);
     return res.status(401).json({ success: false, message: 'Session expired. Please sign in again.' });
   }
