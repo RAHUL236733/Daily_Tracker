@@ -20,6 +20,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const requestCurrentUser = async (signal?: AbortSignal) => {
+  // Use apiJson wrapper to ensure cookies are sent and 401 auto-refresh is handled
   const response = await fetch(buildApiUrl("/api/auth/me"), {
     method: "GET",
     credentials: "include",
@@ -27,6 +28,7 @@ const requestCurrentUser = async (signal?: AbortSignal) => {
     headers: {
       "Content-Type": "application/json",
     },
+    mode: "cors",
   });
 
   const data = await response.json().catch(() => ({}));
