@@ -24,11 +24,20 @@ const app = express();
 app.set('trust proxy', 1);
 
 const isProduction = process.env.NODE_ENV === 'production';
-const configuredFrontend = (process.env.FRONTEND_URL || '').replace(/\/$/, '') || undefined;
 
-// Build a simple whitelist that includes the configured frontend and local dev hosts
+// Build a comprehensive whitelist that includes production Vercel frontend and local dev hosts
 const allowedOrigins = new Set();
-if (configuredFrontend) allowedOrigins.add(configuredFrontend);
+
+// Always include explicit production Vercel frontend URL
+allowedOrigins.add('https://daily-tracker-mu-five.vercel.app');
+
+// Include configured frontend URL if provided (via env)
+const configuredFrontend = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+if (configuredFrontend && configuredFrontend !== '') {
+  allowedOrigins.add(configuredFrontend);
+}
+
+// Local development URLs
 if (!isProduction) {
   allowedOrigins.add('http://localhost:5173');
   allowedOrigins.add('http://127.0.0.1:5173');
@@ -38,30 +47,51 @@ if (!isProduction) {
   allowedOrigins.add('http://127.0.0.1:5175');
 }
 
+// Log configured origins for debugging
+if (!isProduction) {
+  console.log('CORS Allowed Origins:', Array.from(allowedOrigins));
+}
+
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (server-to-server or same-origin from certain tools)
+    // Allow requests with no origin (same-origin requests, server-to-server calls)
     if (!origin) return callback(null, true);
 
     // Exact-match only for security; this ensures Access-Control-Allow-Origin is not '*'
-    if (allowedOrigins.has(origin)) return callback(null, true);
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
 
-    return callback(new Error('CORS origin not allowed'));
+    // Log rejected origins for debugging
+    if (!isProduction) {
+      console.warn(`CORS rejection for origin: ${origin}`);
+    }
+
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Set-Cookie'],
 };
 
-// Middleware
+// Middleware - order is critical for CORS and authentication
 app.use(helmet());
+
+// Apply CORS to all routes
 app.use(cors(corsOptions));
 
-// Ensure preflight requests are handled and credentials header is present for preflight
+// Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
+
+// Parse cookies BEFORE any route handlers
 app.use(cookieParser());
+
+// Parse JSON bodies - critical for POST requests with JSON bodies
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// Sanitize data against NoSQL injection
 app.use(mongoSanitize());
 
 if (isProduction) {

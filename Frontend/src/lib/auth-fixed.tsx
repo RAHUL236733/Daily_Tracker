@@ -48,7 +48,7 @@ const requestCurrentUser = async (signal?: AbortSignal) => {
  * 
  * Flow:
  * 1. Try to get current user via /api/auth/me
- * 2. If that fails with 401, try to refresh tokens via /api/auth/refresh
+ * 2. If that fails, try to refresh tokens via /api/auth/refresh
  * 3. Then retry getting current user
  * 4. If refresh also fails, return null (not authenticated)
  */
@@ -167,6 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.clearTimeout(timeoutId);
       });
 
+    // Listen for session expired events
     const handleSessionExpired = (event: Event) => {
       const customEvent = event as CustomEvent<{ message?: string }>;
 
@@ -185,11 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       window.clearTimeout(timeoutId);
-
-      window.removeEventListener(
-        SESSION_EXPIRED_EVENT,
-        handleSessionExpired
-      );
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
     };
   }, []);
 

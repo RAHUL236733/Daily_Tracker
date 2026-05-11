@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { postJson, buildApiUrl } from "@/lib/api";
+import { postJson } from "@/lib/api";
 
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -26,30 +26,26 @@ export default function ForgotPasswordPage() {
       return;
     }
     setLoading(true);
-    // Resolve and show the URL we will call — useful for debugging "Failed to fetch" in-browser
-    const resolved = buildApiUrl("/api/auth/forgot-password");
 
     try {
-      await postJson<{ success: boolean; message: string }>(resolved, { email });
+      // Call the API endpoint directly - postJson will handle URL building
+      await postJson<{ success: boolean; message: string }>("/api/auth/forgot-password", { email });
       setSuccess("OTP sent successfully");
       localStorage.setItem("dt_reset_email", email);
       navigate("/verify-otp");
     } catch (authError) {
-      // eslint-disable-next-line no-console
       console.error("forgot-password error:", authError);
 
       if (authError instanceof Error) {
-        // If the thrown error includes a URL (enhanced by apiJson), prefer a friendlier message
-        const url = (authError as any).url || resolved;
         if (
           authError.message === "Failed to fetch" ||
           authError.message === "NetworkError when attempting to fetch resource."
         ) {
           setError(
-            `Network error connecting to ${url}. Check backend is running, CORS, and dev server URL.`,
+            `Network error connecting to backend. Check if backend is running at the configured API_URL.`
           );
         } else {
-          setError(`${authError.message} (${url})`);
+          setError(authError.message);
         }
       } else {
         setError("Failed to send OTP");

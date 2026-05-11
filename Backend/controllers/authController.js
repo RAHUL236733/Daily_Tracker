@@ -12,10 +12,12 @@ const ACCESS_COOKIE_NAME = 'accessToken';
 const resolveCookieSameSite = () => {
   const configured = String(process.env.COOKIE_SAME_SITE || '').trim().toLowerCase();
 
+  // Explicit configuration takes precedence
   if (configured === 'strict' || configured === 'lax') return configured;
   if (configured === 'none') return 'none';
 
-  // Default: allow cross-site cookies in production (when secure), lax otherwise
+  // Default for production cross-domain requests: 'none' (requires secure: true)
+  // Default for development: 'lax'
   return process.env.NODE_ENV === 'production' ? 'none' : 'lax';
 };
 
@@ -26,16 +28,26 @@ const getCookieOptions = (maxAge) => {
   const sameSite = String(resolveCookieSameSite()).toLowerCase();
 
   const options = {
-    httpOnly: true,
-    secure: secureEnabled, // ensure secure when in production
-    sameSite,
-    maxAge,
-    path: '/',
+    httpOnly: true,        // Cannot be accessed by JavaScript (security)
+    secure: secureEnabled, // Only sent over HTTPS in production
+    sameSite,              // 'none' for cross-domain, 'lax' or 'strict' for same-domain
+    maxAge,                // Expires in maxAge milliseconds
+    path: '/',             // Cookie applies to all paths
   };
 
-  // Only apply domain when explicitly configured. Do NOT set this to the frontend origin.
+  // Only apply domain when explicitly configured (rare case)
   const cookieDomain = String(process.env.COOKIE_DOMAIN || '').trim();
   if (cookieDomain) options.domain = cookieDomain;
+
+  if (!process.env.NODE_ENV === 'production') {
+    console.log('Cookie options configured:', {
+      httpOnly: options.httpOnly,
+      secure: options.secure,
+      sameSite: options.sameSite,
+      maxAge: options.maxAge,
+      path: options.path,
+    });
+  }
 
   return options;
 };
@@ -182,53 +194,96 @@ export const login = async (req, res) => {
 };
 
 /**
- * @desc Forgot Password - Send OTP
+ * @desc Forgot Password - Send OTP via email
  * @route POST /api/auth/forgot-password
  * @access Public
+ * @body {email: string}
+ * @returns {success: boolean, message: string}
  */
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
+    // Validate email input
     if (!normalizedEmail) {
-      return res.status(400).json({ success: false, message: 'Please provide an email' });
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an email address',
+        code: 'EMAIL_REQUIRED',
+      });
     }
 
+    // Find user by email
     const user = await User.findOne({ email: normalizedEmail });
 
+    // Don't reveal whether email exists (security best practice)
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found with that email' });
+      return res.status(200).json({
+        success: true,
+        message: 'If an account exists for this email, an OTP will be sent shortly.',
+      });
     }
 
-    // Generate and save OTP
+    // Generate OTP and expiry
     const otp = generateOtp();
     const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
     user.otp = otp;
     user.otpExpiry = otpExpiry;
-    await user.save();
 
-    // eslint-disable-next-line no-console
-    console.log(`Generated OTP for ${normalizedEmail}; expires at ${otpExpiry.toISOString()}`);
+    // Save OTP to database
+    try {
+      await user.save({ validateBeforeSave: false });
+    } catch (saveError) {
+      console.error('Error saving OTP to database:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process forgot password request',
+        code: 'DB_ERROR',
+      });
+    }
+
+    // Log for debugging (remove OTP from logs in production)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Generated OTP for ${normalizedEmail}: ${otp} (expires at ${otpExpiry.toISOString()})`);
+    } else {
+      console.log(`Forgot password request for ${normalizedEmail}`);
+    }
 
     // Send OTP via email
     try {
       await sendOtpEmail(normalizedEmail, otp);
+      console.log(`✓ OTP email sent successfully to ${normalizedEmail}`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'OTP sent to your email. Valid for 5 minutes.',
+        code: 'OTP_SENT',
+      });
     } catch (emailError) {
+      console.error(`✗ Email sending failed for ${normalizedEmail}:`, emailError.message);
+
+      // Clear OTP if email fails
       user.otp = undefined;
       user.otpExpiry = undefined;
-      await user.save();
-      return res.status(500).json({ success: false, message: 'Failed to send OTP email' });
-    }
+      await user.save({ validateBeforeSave: false }).catch((err) =>
+        console.error('Error clearing OTP after email failure:', err)
+      );
 
-    res.status(200).json({
-      success: true,
-      message: 'OTP sent to your email. Valid for 5 minutes.',
-    });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP email. Please try again later.',
+        code: 'EMAIL_ERROR',
+      });
+    }
   } catch (error) {
-    console.error('forgotPassword error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Unexpected error in forgotPassword:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'An unexpected error occurred. Please try again later.',
+      code: 'SERVER_ERROR',
+    });
   }
 };
 

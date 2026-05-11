@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "kill-port": "npx kill-port 5000"
+    "kill-port": "npx kill-port 5000",
+    "test:forgot-password": "node test-forgot-password.js",
+    "test:forgot-password:bash": "bash test-forgot-password.sh"
   },
   "keywords": [
     "habit-tracker",
